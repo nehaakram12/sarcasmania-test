@@ -2,15 +2,10 @@ import flask
 from flask import request, jsonify
 import sys
 import logging
-from createFeatureSets import CreateFeatureSet
-import tensorflow as tf
-import numpy as np
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import pickle
 from sklearn.feature_extraction.text import TfidfVectorizer
-from keras.preprocessing.sequence import pad_sequences
-import pandas as pd
 from random import randint
 
 
@@ -21,7 +16,7 @@ app.logger.addHandler(logging.StreamHandler(sys.stdout))
 app.logger.setLevel(logging.ERROR)
 
 def init():
-    global d,loaded_model_humor,service,MAX_NUM_WORDS_INSULT,MAX_SEQUENCE_LENGTH_INSULT,prediction_labels_INSULT
+    global d,loaded_model_humor,service
     # load the pre-trained Keras model
     print("Please wait while the Data-Models load!...")
     d = []
@@ -29,9 +24,6 @@ def init():
     d = pickle.load(dataFile)
     filename_humor = 'partial_fit_model.sav'
     loaded_model_humor = pickle.load(open(filename_humor, 'rb'))
-    # MAX_NUM_WORDS_INSULT = 20000
-    # MAX_SEQUENCE_LENGTH_INSULT = 100
-    # prediction_labels_INSULT = ["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]
 
 
 
@@ -57,20 +49,8 @@ def api_text():
     lol = loaded_model_humor.predict(t)
     humorscore = int(abs(int(lol[0])*100))
 
-    sarcasmscore = sarcasm_test().use_neural_network(inputsen)
-
-    # insultmodel = load_model('my_model.h5')
-    # insultmodel.summary()
-    # tokenizer = Tokenizer(num_words=MAX_NUM_WORDS_INSULT)
-    # with open('tokenizer.pickle', 'rb') as handle:
-    #     tokenizer = pickle.load(handle)
-    # inputsenarray=[inputsen]
-    # insultscore = create_prediction_insult(insultmodel, inputsenarray, tokenizer, MAX_SEQUENCE_LENGTH_INSULT, prediction_labels_INSULT)
-    # print("insult score",insultscore)
-
     results = {
      'Input': inputsen,
-     'Sarcasm': sarcasmscore/20,
      'Humor': humorscore,
      'Insult': randint(0, 1)
     }
@@ -86,115 +66,6 @@ def create_tfidf_training_data_humor(docs, input):
     X = vectorizer.fit_transform(corpus)
     t=vectorizer.transform([input])
     return t
-
-
-class sarcasm_test:
-    # Build the structure of the neural network exactly same as the
-    # trainAndTest.py, so that the input features can be run through the neural
-    #  network.
-    def __init__(self):
-        tf.reset_default_graph()
-
-        number_nodes_HL1 = 100
-        number_nodes_HL2 = 100
-        number_nodes_HL3 = 100
-
-        self.x = tf.placeholder('float', [None, 23])
-        self.y = tf.placeholder('float')
-
-        # Context Modelling
-        with tf.name_scope("HiddenLayer1"):
-            self.hidden_1_layer = {'number_of_neurons': number_nodes_HL1,
-                                   'layer_weights': tf.Variable(
-                                       tf.random_normal([23, number_nodes_HL1])),
-                                   'layer_biases': tf.Variable(
-                                       tf.random_normal([number_nodes_HL1]))}
-
-        # User Embedding
-        with tf.name_scope("HiddenLayer2"):
-            self.hidden_2_layer = {'number_of_neurons': number_nodes_HL2,
-                                   'layer_weights': tf.Variable(
-                                       tf.random_normal(
-                                           [number_nodes_HL1, number_nodes_HL2])),
-                                   'layer_biases': tf.Variable(
-                                       tf.random_normal([number_nodes_HL2]))}
-
-        # Discourse Vector
-        with tf.name_scope("HiddenLayer3"):
-            self.hidden_3_layer = {'number_of_neurons': number_nodes_HL3,
-                                   'layer_weights': tf.Variable(
-                                       tf.random_normal(
-                                           [number_nodes_HL2, number_nodes_HL3])),
-                                   'layer_biases': tf.Variable(
-                                       tf.random_normal([number_nodes_HL3]))}
-
-        # MultiView Fusion
-        with tf.name_scope("OutputLayer"):
-            self.output_layer = {'number_of_neurons': None,
-                                 'layer_weights': tf.Variable(
-                                     tf.random_normal([number_nodes_HL3, 2])),
-                                 'layer_biases': tf.Variable(tf.random_normal([2])), }
-        variable_list = tf.global_variables()
-        # print(variable_list)
-        # variable_list.remove('HiddenLayer1')
-        # self.saver = tf.train.Saver(var_list=variable_list)
-        self.saver = tf.train.Saver(var_list=variable_list)
-        # self.saver.save(sess, 'my-model', global_step=step)
-
-    # Nothing changes in this method as well.
-    def neural_network_model(self, data):
-        l1 = tf.add(tf.matmul(data, self.hidden_1_layer['layer_weights']),
-                    self.hidden_1_layer['layer_biases'])
-        l1 = tf.nn.relu(l1)
-
-        l2 = tf.add(tf.matmul(l1, self.hidden_2_layer['layer_weights']),
-                    self.hidden_2_layer['layer_biases'])
-        l2 = tf.nn.relu(l2)
-
-        l3 = tf.add(tf.matmul(l2, self.hidden_3_layer['layer_weights']),
-                    self.hidden_3_layer['layer_biases'])
-        l3 = tf.nn.relu(l3)
-
-        output = tf.matmul(l3, self.output_layer['layer_weights']) + self.output_layer[
-            'layer_biases']
-
-        return output
-
-    def use_neural_network(self, input_data):
-        """
-        In this method we restore the model created previously and obtain a
-        prediction for an input sentence.
-        :param input_data:
-        :return:
-        """
-        prediction = self.neural_network_model(self.x)
-
-        with tf.Session() as sess:
-            sess.run(tf.global_variables_initializer())
-            self.saver.restore(sess, 'model/sarcasm_model')
-            # variable_list = tf.global_variables()
-            # print(variable_list)
-            features = CreateFeatureSet().extract_feature_of_sentence(input_data)
-            pred = prediction.eval(feed_dict={self.x: [
-                features]})
-            result = int(2.0*(1.0/(1.0+np.exp(-pred[0][0]/100))-0.5)*100.0)
-        return abs(result)
-
-
-def create_prediction_insult(model, sequence, tokenizer, max_length, prediction_labels):
-    # Convert the sequence to tokens and pad it.
-    sequence = tokenizer.texts_to_sequences(sequence)
-    sequence = pad_sequences(sequence, maxlen=max_length)
-
-    # Make a prediction
-    sequence_prediction = model.predict(sequence, verbose=1)
-
-    # Take only the first of the batch of predictions
-    sequence_prediction = pd.DataFrame(sequence_prediction).round(3)
-
-    # Label the predictions
-    sequence_prediction.columns = prediction_labels
-    return sequence_prediction.iloc[0]["insult"]
 
 
 # if this is the main thread of execution first load the model and then start the server
