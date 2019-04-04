@@ -47,11 +47,16 @@ def api_text():
 
     d = []
     dataFile = open('output1.txt', 'rb')
+    print("File opened")
     d = pickle.load(dataFile)
+    print("Dataset loaded")
     filename_humor = 'partial_fit_model.sav'
     loaded_model_humor = pickle.load(open(filename_humor, 'rb'))
+    print("model loaded")
     t= create_tfidf_training_data_humor(d, inputsen)
+    print("data created: ")
     lol = loaded_model_humor.predict(t)
+    print("prediction calculated")
     humorscore = int(abs(int(lol[0])*100))
 
     results = {
