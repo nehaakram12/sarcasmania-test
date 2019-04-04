@@ -16,14 +16,14 @@ app.logger.addHandler(logging.StreamHandler(sys.stdout))
 app.logger.setLevel(logging.ERROR)
 
 def init():
-    global d,loaded_model_humor,service
+    # global d,loaded_model_humor,service
     # load the pre-trained Keras model
     print("Please wait while the Data-Models load!...")
-    d = []
-    dataFile = open('output1.txt', 'rb')
-    d = pickle.load(dataFile)
-    filename_humor = 'partial_fit_model.sav'
-    loaded_model_humor = pickle.load(open(filename_humor, 'rb'))
+    # d = []
+    # dataFile = open('output1.txt', 'rb')
+    # d = pickle.load(dataFile)
+    # filename_humor = 'partial_fit_model.sav'
+    # loaded_model_humor = pickle.load(open(filename_humor, 'rb'))
 
 
 
@@ -45,6 +45,11 @@ def api_text():
         return "Error: No text field provided. Please specify text."
     print("Input Line: ", inputsen)
 
+    d = []
+    dataFile = open('output1.txt', 'rb')
+    d = pickle.load(dataFile)
+    filename_humor = 'partial_fit_model.sav'
+    loaded_model_humor = pickle.load(open(filename_humor, 'rb'))
     t= create_tfidf_training_data_humor(d, inputsen)
     lol = loaded_model_humor.predict(t)
     humorscore = int(abs(int(lol[0])*100))
