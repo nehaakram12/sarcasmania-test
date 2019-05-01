@@ -7,6 +7,8 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import pickle
 from sklearn.feature_extraction.text import TfidfVectorizer
 from random import randint
+from googleapiclient import discovery
+import json
 
 
 app = flask.Flask(__name__)
@@ -59,10 +61,24 @@ def api_text():
     print("prediction calculated")
     humorscore = int(abs(int(lol[0])*100))
 
+
+    API_KEY='AIzaSyCZspzx7MtubROWWX9NK-USz91ZeIpojoE'
+    # Generates API client object dynamically based on service name and version.
+    service = discovery.build('commentanalyzer', 'v1alpha1', developerKey=API_KEY)
+    analyze_request = {
+      'comment': { 'text': inputsen},
+      'requestedAttributes': {'TOXICITY': {}}
+    }
+    response = service.comments().analyze(body=analyze_request).execute()
+    k = json.loads(json.dumps(response, indent=2))
+    insultscore=k["attributeScores"]["TOXICITY"]["spanScores"][0]["score"]["value"]
+    print ("The insult score is: ")
+    print (insultscore)
+
     results = {
      'Input': inputsen,
      'Humor': humorscore,
-     'Insult': randint(0, 1)
+     'Insult': insultscore
     }
 
     return jsonify(results)
